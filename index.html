@@ -156,7 +156,6 @@
       background:
         linear-gradient(90deg, rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0.36)),
         url("images/hero_bg_1.jpg") center / cover no-repeat;
-      /* Allow the background image to scroll with the page */
       background-attachment: scroll;
       color: white;
       display: flex;
@@ -279,35 +278,6 @@
       font-size: 13px;
       max-width: 420px;
       text-align: right;
-    }
-
-    .filters {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin: 6px 0 18px;
-    }
-
-    .filter-btn {
-      appearance: none;
-      background: var(--paper);
-      border: 1px solid var(--line);
-      border-radius: 4px;
-      color: var(--text);
-      cursor: pointer;
-      font: inherit;
-      font-size: 13px;
-      font-weight: 800;
-      min-height: 38px;
-      padding: 8px 14px;
-      text-transform: uppercase;
-    }
-
-    .filter-btn.active,
-    .filter-btn:hover {
-      background: var(--black);
-      border-color: var(--black);
-      color: white;
     }
 
     .competition {
@@ -495,61 +465,6 @@
       margin-bottom: 4px;
     }
 
-    .news-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 16px;
-    }
-
-    .news-card {
-      background: var(--paper);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
-      overflow: hidden;
-    }
-
-    .news-image {
-      aspect-ratio: 16 / 9;
-      background:
-        linear-gradient(rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.18)),
-        url("images/hero_bg_1.jpg") center / cover no-repeat;
-    }
-
-    .news-image img {
-      display: block;
-      height: 100%;
-      object-fit: cover;
-      width: 100%;
-    }
-
-    .news-body {
-      padding: 15px;
-    }
-
-    .news-source {
-      color: var(--accent);
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      margin-bottom: 7px;
-      text-transform: uppercase;
-    }
-
-    .news-title {
-      color: var(--ink);
-      font-size: 17px;
-      font-weight: 800;
-      line-height: 1.25;
-      margin-bottom: 8px;
-    }
-
-    .news-summary {
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.55;
-    }
-
     .footer {
       background: #333;
       color: rgba(255, 255, 255, 0.68);
@@ -593,10 +508,6 @@
       }
 
       .status-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .news-grid {
         grid-template-columns: 1fr;
       }
 
@@ -674,13 +585,6 @@
       Football scores use the shared Firebase cache. This page does not call the football API directly, so visitors do not burn the 100 calls per day.
     </div>
 
-    <div class="filters" aria-label="Match filters">
-      <button class="filter-btn active" type="button" data-filter="ALL">All</button>
-      <button class="filter-btn" type="button" data-filter="LIVE">Live</button>
-      <button class="filter-btn" type="button" data-filter="NS">Upcoming</button>
-      <button class="filter-btn" type="button" data-filter="FT">Finished</button>
-    </div>
-
     <section id="worldcup">
       <div class="section-head">
         <h2 class="section-title">World Cup</h2>
@@ -735,16 +639,6 @@
     };
 
     let allMatches = [];
-    let currentFilter = "ALL";
-
-    document.querySelectorAll(".filter-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        currentFilter = btn.dataset.filter;
-        document.querySelectorAll(".filter-btn").forEach((item) => item.classList.remove("active"));
-        btn.classList.add("active");
-        render();
-      });
-    });
 
     window.addEventListener("hashchange", updateActiveNav);
     updateActiveNav();
@@ -790,25 +684,12 @@
       return WORLD_CUP_IDS.has(id) || name.includes("world cup");
     }
 
-    function applyFilter(matches) {
-      if (currentFilter === "ALL") return matches;
-
-      return matches.filter((match) => {
-        const status = match.fixture && match.fixture.status && match.fixture.status.short;
-        if (currentFilter === "LIVE") return LIVE_S.includes(status);
-        if (currentFilter === "NS") return UPCOMING_S.includes(status);
-        if (currentFilter === "FT") return FINISHED_S.includes(status);
-        return false;
-      });
-    }
-
     function render() {
-      const filtered = applyFilter(allMatches);
-      const worldCup = filtered.filter(isWorldCupMatch);
-      const all = filtered;
+      const worldCup = allMatches.filter(isWorldCupMatch);
+      const all = allMatches;
 
-      renderGroups("worldCupList", worldCup, "No World Cup matches found for this filter.");
-      renderGroups("allMatchList", all, "No matches found for this filter.");
+      renderGroups("worldCupList", worldCup, "No World Cup matches found.");
+      renderGroups("allMatchList", all, "No matches found.");
     }
 
     function renderGroups(targetId, matches, emptyText) {
