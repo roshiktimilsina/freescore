@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FreeScore - World Cup Scores</title>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+    import { getDatabase, ref, onValue, goOffline, goOnline }
+      from "https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDHro1SmNwncIHEiS_HrjUy46GsUOWe8fU",
+      authDomain: "sport-79033.firebaseapp.com",
+      databaseURL: "https://sport-79033-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "sport-79033",
+      appId: "1:897440440764:web:781c694041bf300d294bb9"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    onValue(ref(db, "football/cache"), (snap) => {
+      if (!snap.exists()) {
+        window._showEmpty("Waiting for cached match data");
+        return;
+      }
+
+      const cache = snap.val();
+      window._onCacheData({
+        matches: Array.isArray(cache.matches) ? cache.matches : [],
+        timestamp: cache.timestamp || 0,
+        date: cache.date || "",
+        counts: cache.counts || null,
+        competitionType: cache.competitionType || ""
+      });
+    }, (err) => {
+      window._showError("Could not read shared match cache: " + err.message);
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") {
+        goOffline(db);
+        window._setConnection(false);
+      } else {
+        goOnline(db);
+        window._setConnection(true);
+      }
+    });
+  </script>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --black: #070707;
+      --ink: #171717;
+      --text: #2b2b2b;
+      --muted: #707070;
+      --line: #e8e8e8;
+      --paper: #ffffff;
+      --soft: #f6f6f6;
+      --accent: #f23a2e;
+      --gold: #eec60a;
+      --green: #18964f;
+      --shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--soft);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.5;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .top-strip {
+      background: var(--black);
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 12px;
+      padding: 8px 18px;
+    }
+
+    .top-strip-inner,
+    .nav-inner,
+    .hero-inner,
+    main {
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    .top-strip-inner {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .site-nav {
+      background: rgba(0, 0, 0, 0.9);
+      color: white;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      box-shadow: 0 2px 16px rgba(0, 0, 0, 0.22);
+    }
+
+    .nav-inner {
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .brand {
+      min-width: max-content;
+      font-size: 24px;
+      font-weight: 800;
+    }
+
+    .brand span {
+      color: var(--accent);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+    }
+
+    .nav-links a {
+      border-radius: 4px;
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 13px;
+      font-weight: 700;
+      padding: 9px 12px;
+      text-transform: uppercase;
+    }
+
+    .nav-links a.active,
+    .nav-links a:hover {
+      color: white;
+      background: var(--accent);
+    }
+
+    .hero {
+      min-height: 390px;
+      background:
+        linear-gradient(90deg, rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0.36)),
+        url("images/hero_bg_1.jpg") center / cover no-repeat;
+      /* Allow the background image to scroll with the page */
+      background-attachment: scroll;
+      color: white;
+      display: flex;
+      align-items: center;
+      transition: background-image 0.8s ease-in-out;
+    }
+
+    .hero-copy {
+      max-width: 620px;
+      padding: 72px 0 88px;
+    }
+
+    .hero-kicker {
+      display: block;
+      background: var(--accent);
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 14px;
+      padding: 6px 10px;
+      text-transform: uppercase;
+      width: fit-content;
+    }
+
+    h1 {
+      display: inline;
+      background: #000;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+      box-shadow: 18px 0 0 #000, -18px 0 0 #000;
+      color: #fff;
+      font-size: 48px;
+      line-height: 1.18;
+      font-weight: 800;
+    }
+
+    .hero-copy p {
+      color: rgba(255, 255, 255, 0.86);
+      font-size: 17px;
+      margin-top: 24px;
+      max-width: 520px;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: -44px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .metric {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .metric-value {
+      color: var(--ink);
+      font-size: 28px;
+      font-weight: 800;
+      margin-top: 4px;
+      min-height: 34px;
+    }
+
+    .metric-value.good {
+      color: var(--green);
+    }
+
+    .cache-note {
+      background: #fff9db;
+      border: 1px solid #f1d26b;
+      border-left: 4px solid var(--gold);
+      border-radius: 8px;
+      color: #654f00;
+      font-size: 14px;
+      margin: 18px 0 10px;
+      padding: 14px 16px;
+    }
+
+    main {
+      padding: 26px 0 56px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      margin: 28px 0 14px;
+    }
+
+    .section-title {
+      color: var(--ink);
+      font-size: 24px;
+      font-weight: 800;
+    }
+
+    .section-title::before {
+      content: "";
+      display: block;
+      width: 42px;
+      height: 3px;
+      background: var(--accent);
+      margin-bottom: 9px;
+    }
+
+    .section-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      max-width: 420px;
+      text-align: right;
+    }
+
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 6px 0 18px;
+    }
+
+    .filter-btn {
+      appearance: none;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      color: var(--text);
+      cursor: pointer;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 800;
+      min-height: 38px;
+      padding: 8px 14px;
+      text-transform: uppercase;
+    }
+
+    .filter-btn.active,
+    .filter-btn:hover {
+      background: var(--black);
+      border-color: var(--black);
+      color: white;
+    }
+
+    .competition {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    .competition-head {
+      align-items: center;
+      background: var(--black);
+      color: white;
+      display: flex;
+      font-weight: 800;
+      justify-content: space-between;
+      min-height: 46px;
+      padding: 11px 16px;
+    }
+
+    .competition-meta {
+      color: rgba(255, 255, 255, 0.68);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .match-row {
+      align-items: center;
+      background: white;
+      border-top: 1px solid var(--line);
+      cursor: pointer;
+      display: grid;
+      gap: 12px;
+      grid-template-columns: minmax(0, 1fr) 136px minmax(0, 1fr);
+      min-height: 82px;
+      padding: 14px 16px;
+      transition: background 0.18s ease, transform 0.18s ease;
+    }
+
+    .match-row:hover {
+      background: #fff8f7;
+    }
+
+    .team {
+      align-items: center;
+      display: flex;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .team.home {
+      justify-content: flex-end;
+      text-align: right;
+    }
+
+    .team.away {
+      justify-content: flex-start;
+      text-align: left;
+    }
+
+    .team-name {
+      color: var(--ink);
+      font-size: 15px;
+      font-weight: 800;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .team-country {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .logo {
+      align-items: center;
+      background: #f4f4f4;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      display: flex;
+      flex: 0 0 38px;
+      height: 38px;
+      justify-content: center;
+      overflow: hidden;
+      width: 38px;
+    }
+
+    .logo img {
+      display: block;
+      height: 28px;
+      object-fit: contain;
+      width: 28px;
+    }
+
+    .logo span {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .score-box {
+      align-items: center;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      justify-content: center;
+      min-width: 0;
+      text-align: center;
+    }
+
+    .score {
+      background: var(--black);
+      border-radius: 4px;
+      color: white;
+      font-size: 21px;
+      font-weight: 800;
+      min-width: 84px;
+      padding: 6px 10px;
+    }
+
+    .score.vs {
+      background: #ededed;
+      color: var(--muted);
+      font-size: 14px;
+      text-transform: uppercase;
+    }
+
+    .status {
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      min-height: 22px;
+      padding: 3px 10px;
+      text-transform: uppercase;
+    }
+
+    .status.live {
+      background: #ffe3e0;
+      color: var(--accent);
+    }
+
+    .status.finished {
+      background: #e2f7e9;
+      color: var(--green);
+    }
+
+    .status.scheduled {
+      background: #fff5c2;
+      color: #8f6d00;
+    }
+
+    .status.postponed {
+      background: #eee;
+      color: var(--muted);
+    }
+
+    .empty-box {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--muted);
+      padding: 28px;
+      text-align: center;
+    }
+
+    .hero-band {
+      background:
+        linear-gradient(90deg, rgba(238, 198, 10, 0.9), rgba(242, 58, 46, 0.76)),
+        url("images/hero_bg_1.jpg") center / cover no-repeat;
+      border-radius: 8px;
+      color: #111;
+      margin: 28px 0;
+      min-height: 130px;
+      padding: 24px;
+    }
+
+    .hero-band strong {
+      display: block;
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .news-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .news-card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+      overflow: hidden;
+    }
+
+    .news-image {
+      aspect-ratio: 16 / 9;
+      background:
+        linear-gradient(rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.18)),
+        url("images/hero_bg_1.jpg") center / cover no-repeat;
+    }
+
+    .news-image img {
+      display: block;
+      height: 100%;
+      object-fit: cover;
+      width: 100%;
+    }
+
+    .news-body {
+      padding: 15px;
+    }
+
+    .news-source {
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      margin-bottom: 7px;
+      text-transform: uppercase;
+    }
+
+    .news-title {
+      color: var(--ink);
+      font-size: 17px;
+      font-weight: 800;
+      line-height: 1.25;
+      margin-bottom: 8px;
+    }
+
+    .news-summary {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .footer {
+      background: #333;
+      color: rgba(255, 255, 255, 0.68);
+      padding: 26px 18px;
+      text-align: center;
+    }
+
+    .footer strong {
+      color: white;
+    }
+
+    @media (max-width: 760px) {
+      .top-strip-inner {
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .nav-inner {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 10px;
+        padding: 14px 0;
+      }
+
+      .nav-links {
+        margin-left: 0;
+        overflow-x: auto;
+        width: 100%;
+      }
+
+      .hero {
+        min-height: 330px;
+      }
+
+      .hero-copy {
+        padding: 50px 0 70px;
+      }
+
+      h1 {
+        font-size: 34px;
+      }
+
+      .status-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .news-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .section-head {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .section-subtitle {
+        text-align: left;
+      }
+
+      .match-row {
+        grid-template-columns: 1fr;
+      }
+
+      .team.home,
+      .team.away {
+        justify-content: center;
+        text-align: center;
+      }
+
+      .team.home .logo {
+        order: -1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="top-strip">
+    <div class="top-strip-inner">
+      <span>freescore.app</span>
+      <span id="cacheLine">Shared cache loading</span>
+    </div>
+  </div>
+
+  <nav class="site-nav">
+    <div class="nav-inner">
+      <a class="brand" href="index.html">Free<span>Score</span></a>
+      <div class="nav-links">
+        <a class="active" href="#worldcup" data-nav-section="worldcup">World Cup</a>
+        <a href="#all" data-nav-section="all">All Matches</a>
+        <a href="news.html">News</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="hero-inner">
+      <div class="hero-copy">
+        <span class="hero-kicker">World Cup</span>
+        <h1>World Cup live scores</h1>
+        <p>World Cup matches stay at the top. Every other match is grouped below in a separate All Matches section.</p>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="status-grid" aria-label="Score summary">
+      <div class="metric">
+        <div class="metric-label">World Cup</div>
+        <div class="metric-value" id="metricWorldCup">0</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">All Matches</div>
+        <div class="metric-value" id="metricAll">0</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Connection</div>
+        <div class="metric-value good" id="metricCache">Cache</div>
+      </div>
+    </section>
+
+    <div class="cache-note" id="apiNote">
+      Football scores use the shared Firebase cache. This page does not call the football API directly, so visitors do not burn the 100 calls per day.
+    </div>
+
+    <div class="filters" aria-label="Match filters">
+      <button class="filter-btn active" type="button" data-filter="ALL">All</button>
+      <button class="filter-btn" type="button" data-filter="LIVE">Live</button>
+      <button class="filter-btn" type="button" data-filter="NS">Upcoming</button>
+      <button class="filter-btn" type="button" data-filter="FT">Finished</button>
+    </div>
+
+    <section id="worldcup">
+      <div class="section-head">
+        <h2 class="section-title">World Cup</h2>
+        <p class="section-subtitle">This section includes FIFA World Cup matches and competitions with World Cup in the league name.</p>
+      </div>
+      <div id="worldCupList">
+        <div class="empty-box">Loading World Cup matches...</div>
+      </div>
+    </section>
+
+    <div class="hero-band">
+      <strong>API usage is protected</strong>
+      This page reads the shared Firebase cache only. The scheduled updater should handle API calls so visitors do not spend the daily limit.
+    </div>
+
+    <section id="all">
+      <div class="section-head">
+        <h2 class="section-title">All Matches</h2>
+        <p class="section-subtitle">Every cached match appears here, grouped by competition.</p>
+      </div>
+      <div id="allMatchList">
+        <div class="empty-box">Loading all matches...</div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <strong>FreeScore</strong> - freescore.app - World Cup first, all matches separate, shared cache protected.
+  </footer>
+
+  <script>
+    const LIVE_S = ["1H", "HT", "2H", "ET", "BT", "P", "INT", "LIVE"];
+    const FINISHED_S = ["FT", "AET", "PEN"];
+    const UPCOMING_S = ["NS", "TBD"];
+    const WORLD_CUP_IDS = new Set([1]);
+
+    const STATUS_LABEL = {
+      "1H": "Live", "HT": "Half time", "2H": "Live", "ET": "Extra time",
+      "BT": "Break", "P": "Penalties", "INT": "Interrupted", "LIVE": "Live",
+      "FT": "Full time", "AET": "After extra time", "PEN": "Penalties",
+      "NS": "Upcoming", "TBD": "TBD", "PST": "Postponed", "CANC": "Cancelled",
+      "ABD": "Abandoned", "SUSP": "Suspended"
+    };
+
+    const STATUS_CLASS = {
+      "1H": "live", "HT": "live", "2H": "live", "ET": "live", "BT": "live",
+      "P": "live", "INT": "live", "LIVE": "live",
+      "FT": "finished", "AET": "finished", "PEN": "finished",
+      "NS": "scheduled", "TBD": "scheduled",
+      "PST": "postponed", "CANC": "postponed", "ABD": "postponed", "SUSP": "postponed"
+    };
+
+    let allMatches = [];
+    let currentFilter = "ALL";
+
+    document.querySelectorAll(".filter-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        currentFilter = btn.dataset.filter;
+        document.querySelectorAll(".filter-btn").forEach((item) => item.classList.remove("active"));
+        btn.classList.add("active");
+        render();
+      });
+    });
+
+    window.addEventListener("hashchange", updateActiveNav);
+    updateActiveNav();
+
+    window._onCacheData = function ({ matches, timestamp, date, counts, competitionType }) {
+      allMatches = matches;
+      document.getElementById("metricAll").textContent = String(matches.length);
+      document.getElementById("metricWorldCup").textContent = String(matches.filter(isWorldCupMatch).length);
+      document.getElementById("metricCache").textContent = "Live";
+
+      const age = timestamp ? Math.max(0, Math.round((Date.now() - timestamp) / 1000)) : null;
+      const ageText = age === null ? "cache ready" : (age < 5 ? "updated just now" : "updated " + age + "s ago");
+      const countText = counts ? " - " + counts.total + " cached" : "";
+      const typeText = competitionType ? " - " + competitionType.replace(/_/g, " ") : "";
+      document.getElementById("cacheLine").textContent = ageText + countText + typeText + (date ? " - " + date : "");
+      document.getElementById("apiNote").textContent = "Football scores are connected through Firebase cache. The browser made 0 direct football API calls.";
+
+      render();
+    };
+
+    window._showEmpty = function (message) {
+      allMatches = [];
+      document.getElementById("cacheLine").textContent = message;
+      document.getElementById("metricCache").textContent = "Waiting";
+      document.getElementById("apiNote").textContent = "No cached football data found — deploy the scheduled updater to populate football/cache.";
+      render();
+    };
+
+    window._showError = function (message) {
+      document.getElementById("cacheLine").textContent = message;
+      document.getElementById("metricCache").textContent = "Error";
+      document.getElementById("apiNote").textContent = "Unable to read Firebase cache. Check your updater or Firebase permissions.";
+      render();
+    };
+
+    window._setConnection = function (online) {
+      document.getElementById("metricCache").textContent = online ? "Live" : "Paused";
+    };
+
+    function isWorldCupMatch(match) {
+      const id = match.league && match.league.id;
+      const name = ((match.league && match.league.name) || "").toLowerCase();
+      return WORLD_CUP_IDS.has(id) || name.includes("world cup");
+    }
+
+    function applyFilter(matches) {
+      if (currentFilter === "ALL") return matches;
+
+      return matches.filter((match) => {
+        const status = match.fixture && match.fixture.status && match.fixture.status.short;
+        if (currentFilter === "LIVE") return LIVE_S.includes(status);
+        if (currentFilter === "NS") return UPCOMING_S.includes(status);
+        if (currentFilter === "FT") return FINISHED_S.includes(status);
+        return false;
+      });
+    }
+
+    function render() {
+      const filtered = applyFilter(allMatches);
+      const worldCup = filtered.filter(isWorldCupMatch);
+      const all = filtered;
+
+      renderGroups("worldCupList", worldCup, "No World Cup matches found for this filter.");
+      renderGroups("allMatchList", all, "No matches found for this filter.");
+    }
+
+    function renderGroups(targetId, matches, emptyText) {
+      const target = document.getElementById(targetId);
+      if (!matches.length) {
+        target.innerHTML = '<div class="empty-box">' + escapeHtml(emptyText) + '</div>';
+        return;
+      }
+
+      const groups = {};
+      matches.forEach((match) => {
+        const key = (match.league && match.league.name) || "Unknown Competition";
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(match);
+      });
+
+      // Sort groups: World Cup first, then others alphabetically
+      const sortedKeys = Object.keys(groups).sort((a, b) => {
+        const aIsWorldCup = a.toLowerCase().includes("world cup");
+        const bIsWorldCup = b.toLowerCase().includes("world cup");
+        
+        if (aIsWorldCup && !bIsWorldCup) return -1;
+        if (!aIsWorldCup && bIsWorldCup) return 1;
+        return a.localeCompare(b);
+      });
+
+      let html = "";
+      sortedKeys.forEach((competition) => {
+        const list = groups[competition];
+        const liveCount = list.filter((match) => LIVE_S.includes(getStatus(match))).length;
+        html += '<article class="competition">';
+        html += '<div class="competition-head">';
+        html += '<span>' + escapeHtml(competition) + '</span>';
+        html += '<span class="competition-meta">' + list.length + ' match' + (list.length === 1 ? "" : "es") + (liveCount ? " - " + liveCount + " live" : "") + '</span>';
+        html += '</div>';
+        list.forEach((match) => {
+          html += buildMatchRow(match);
+        });
+        html += '</article>';
+      });
+
+      target.innerHTML = html;
+    }
+
+    function buildMatchRow(match) {
+      const home = match.teams && match.teams.home ? match.teams.home : {};
+      const away = match.teams && match.teams.away ? match.teams.away : {};
+      const goals = match.goals || {};
+      const status = getStatus(match);
+      const hasScore = goals.home != null && goals.away != null;
+      const elapsed = match.fixture && match.fixture.status && match.fixture.status.elapsed;
+      let statusText = STATUS_LABEL[status] || status || "Scheduled";
+
+      if (LIVE_S.includes(status) && elapsed != null) statusText = elapsed + "'";
+      if (UPCOMING_S.includes(status) && match.fixture && match.fixture.date) {
+        statusText = formatTime(match.fixture.date);
+      }
+
+      const rowData = JSON.stringify(match).replace(/"/g, "&quot;");
+      const score = hasScore
+        ? '<div class="score">' + goals.home + ' : ' + goals.away + '</div>'
+        : '<div class="score vs">vs</div>';
+
+      return '<div class="match-row" onclick="openMatch(' + rowData + ')">' +
+        '<div class="team home">' +
+          '<div><div class="team-name">' + escapeHtml(home.name || "TBD") + '</div>' +
+          '<div class="team-country">' + escapeHtml((match.league && match.league.country) || "") + '</div></div>' +
+          logo(home.name, home.logo) +
+        '</div>' +
+        '<div class="score-box">' +
+          score +
+          '<span class="status ' + (STATUS_CLASS[status] || "scheduled") + '">' + escapeHtml(statusText) + '</span>' +
+        '</div>' +
+        '<div class="team away">' +
+          logo(away.name, away.logo) +
+          '<div><div class="team-name">' + escapeHtml(away.name || "TBD") + '</div>' +
+          '<div class="team-country">' + escapeHtml((match.fixture && match.fixture.date) ? formatDate(match.fixture.date) : "") + '</div></div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    function getStatus(match) {
+      return match.fixture && match.fixture.status && match.fixture.status.short;
+    }
+
+    function logo(name, src) {
+      const safeName = escapeHtml(name || "Team");
+      const initials = escapeHtml((name || "TM").substring(0, 2).toUpperCase());
+      if (!src) return '<div class="logo"><span>' + initials + '</span></div>';
+      return '<div class="logo"><img src="' + escapeAttr(src) + '" alt="' + safeName + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><span style="display:none">' + initials + '</span></div>';
+    }
+
+    function openMatch(match) {
+      sessionStorage.setItem("matchData", JSON.stringify(match));
+      const id = match.fixture && match.fixture.id;
+      window.location.href = id ? "details.html?id=" + encodeURIComponent(id) : "details.html";
+    }
+
+    function formatTime(value) {
+      return new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    }
+
+    function formatDate(value) {
+      return new Date(value).toLocaleDateString([], { month: "short", day: "numeric" });
+    }
+
+    function escapeHtml(value) {
+      return String(value == null ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value).replace(/`/g, "&#96;");
+    }
+
+    function updateActiveNav() {
+      const hash = (location.hash || "#worldcup").replace("#", "");
+      document.querySelectorAll(".nav-links a").forEach((link) => {
+        link.classList.toggle("active", link.dataset.navSection === hash);
+      });
+    }
+  </script>
+</body>
+</html>
